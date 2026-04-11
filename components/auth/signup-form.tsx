@@ -10,10 +10,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAppDispatch } from '@/lib/store/hooks'
 import { login } from '@/lib/features/auth/auth-slice'
+import { loginUser, registerUser } from '@/lib/api/auth'
+import { storeTokens } from '@/lib/auth/session'
 import type { User } from '@/types'
 
 const signupSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
+  username: z.string().min(3, 'Username must be at least 3 characters'),
   email: z.string().email('Please enter a valid email'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 })
@@ -27,6 +30,7 @@ interface SignupFormProps {
 export function SignupForm({ onSuccess }: SignupFormProps) {
   const dispatch = useAppDispatch()
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const {
     register,
@@ -38,27 +42,33 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
 
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true)
+    setError('')
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    try {
+      const { accessToken, refreshToken, user: userProfile } = await registerUser(data)
 
-    // Create new user (demo)
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      username: data.name.toLowerCase().replace(/\s+/g, ''),
-      name: data.name,
-      email: data.email,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.name}`,
-      bio: '',
-      followers: 0,
-      following: 0,
-      articlesCount: 0,
-      createdAt: new Date().toISOString(),
+      const user: User = {
+        id: String(userProfile.id),
+        username: userProfile.username,
+        name: userProfile.name,
+        email: userProfile.email,
+        avatar: userProfile.avatar,
+        bio: userProfile.bio,
+        followers: userProfile.followerCount,
+        following: userProfile.followingCount,
+        articlesCount: 0,
+        createdAt: new Date().toISOString(),
+      }
+
+      storeTokens(accessToken, refreshToken, userProfile)
+
+      dispatch(login(user))
+      onSuccess?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to create account right now')
+    } finally {
+      setIsLoading(false)
     }
-
-    dispatch(login(newUser))
-    onSuccess?.()
-    setIsLoading(false)
   }
 
   return (
@@ -125,6 +135,19 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
 
       <div className="space-y-2">
         <Input
+          {...register('username')}
+          type="text"
+          placeholder="Username"
+          disabled={isLoading}
+          aria-invalid={errors.username ? 'true' : 'false'}
+        />
+        {errors.username && (
+          <p className="text-sm text-destructive">{errors.username.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Input
           {...register('email')}
           type="email"
           placeholder="Email"
@@ -148,6 +171,10 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
           <p className="text-sm text-destructive">{errors.password.message}</p>
         )}
       </div>
+
+      {error && (
+        <p className="text-sm text-destructive">{error}</p>
+      )}
 
       <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading ? (

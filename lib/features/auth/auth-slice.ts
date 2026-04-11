@@ -1,6 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { User } from '@/types'
-import { currentUser } from '@/lib/data/fake-users'
 
 interface AuthState {
   user: User | null
@@ -9,8 +8,8 @@ interface AuthState {
 }
 
 const initialState: AuthState = {
-  user: currentUser,
-  isAuthenticated: true,
+  user: null,
+  isAuthenticated: false,
   isLoading: false,
 }
 

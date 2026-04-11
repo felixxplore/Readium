@@ -16,6 +16,7 @@ import {
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks'
 import { logout } from '@/lib/features/auth/auth-slice'
 import { toggleMobileMenu, closeMobileMenu, openAuthModal } from '@/lib/features/ui/ui-slice'
+import { clearStoredSession } from '@/lib/auth/session'
 import { cn } from '@/lib/utils'
 
 export function Header() {
@@ -25,6 +26,11 @@ export function Header() {
   const { mobileMenuOpen } = useAppSelector(state => state.ui)
 
   const isWritePage = pathname?.startsWith('/write')
+
+  const handleLogout = () => {
+    clearStoredSession()
+    dispatch(logout())
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -85,7 +91,7 @@ export function Header() {
                     <Link href="/settings">Settings</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => dispatch(logout())}>
+                  <DropdownMenuItem onClick={handleLogout}>
                     Sign out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -166,7 +172,7 @@ export function Header() {
               <button
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-muted"
                 onClick={() => {
-                  dispatch(logout())
+                  handleLogout()
                   dispatch(closeMobileMenu())
                 }}
               >

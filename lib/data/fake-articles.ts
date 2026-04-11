@@ -359,6 +359,10 @@ export const getArticleBySlug = (slug: string): Article | undefined => {
   return fakeArticles.find(article => article.slug === slug)
 }
 
+export const getAllPosts = (): ArticlePreview[] => {
+  return fakeArticles.map(getArticlePreview)
+}
+
 export const getArticlesByAuthor = (username: string): ArticlePreview[] => {
   return fakeArticles
     .filter(article => article.author.username === username)

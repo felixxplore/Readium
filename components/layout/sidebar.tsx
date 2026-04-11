@@ -5,11 +5,11 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/shared/user-avatar'
 import { trendingTags } from '@/lib/data/fake-articles'
-import { fakeUsers } from '@/lib/data/fake-users'
+import { useRecommendedUsers } from '@/lib/hooks/use-user'
 import { cn } from '@/lib/utils'
 
 export function Sidebar() {
-  const recommendedUsers = fakeUsers.slice(2, 6)
+  const { users: recommendedUsers } = useRecommendedUsers()
 
   return (
     <aside className="sticky top-20 hidden w-80 flex-shrink-0 lg:block">

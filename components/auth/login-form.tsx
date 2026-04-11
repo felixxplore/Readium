@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAppDispatch } from '@/lib/store/hooks'
 import { login } from '@/lib/features/auth/auth-slice'
-import { fakeUsers } from '@/lib/data/fake-users'
+import { loginUser } from '@/lib/api/auth'
+import { storeTokens } from '@/lib/auth/session'
+import type { User } from '@/types'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -40,22 +42,31 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setIsLoading(true)
     setError('')
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    try {
+      const { accessToken, refreshToken, user: userProfile } = await loginUser(data)
 
-    // Check if email matches any fake user (demo purpose)
-    const user = fakeUsers.find(u => u.email === data.email)
+      const user: User = {
+        id: String(userProfile.id),
+        username: userProfile.username,
+        name: userProfile.name,
+        email: userProfile.email,
+        avatar: userProfile.avatar,
+        bio: userProfile.bio,
+        followers: userProfile.followerCount,
+        following: userProfile.followingCount,
+        articlesCount: 0,
+        createdAt: new Date().toISOString(),
+      }
 
-    if (user) {
+      storeTokens(accessToken, refreshToken, userProfile)
+
       dispatch(login(user))
       onSuccess?.()
-    } else {
-      // For demo, just log in as the first user
-      dispatch(login(fakeUsers[0]))
-      onSuccess?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to sign in right now')
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
   return (

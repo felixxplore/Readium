@@ -10,7 +10,7 @@ import { TiptapEditor } from '@/components/editor/tiptap-editor'
 import { Button } from '@/components/ui/button'
 import { PageTransition } from '@/components/shared/page-transition'
 import { useAppSelector } from '@/lib/store/hooks'
-import { cn } from '@/lib/utils'
+import { createPost } from '@/lib/api/posts'
 
 const DRAFT_KEY = 'readium-draft'
 
@@ -35,6 +35,7 @@ export default function WritePage() {
   const [tagInput, setTagInput] = useState('')
   const [isPublishing, setIsPublishing] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [error, setError] = useState('')
 
   // Load draft from localStorage
   useEffect(() => {
@@ -94,15 +95,20 @@ export default function WritePage() {
     }
 
     setIsPublishing(true)
+    setError('')
 
-    // Simulate publishing
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    try {
+      const post = await createPost({
+        title: title.trim(),
+        content,
+      })
 
-    // Clear draft
-    localStorage.removeItem(DRAFT_KEY)
-
-    // Redirect to home (in a real app, would redirect to the new article)
-    router.push('/')
+      localStorage.removeItem(DRAFT_KEY)
+      router.push(`/article/${post.slug}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to publish story')
+      setIsPublishing(false)
+    }
   }
 
   const handleCoverImageChange = () => {
@@ -159,6 +165,12 @@ export default function WritePage() {
       <main className="mx-auto max-w-4xl px-4 py-8">
         <PageTransition>
           <div className="space-y-6">
+            {error && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
             {/* Cover Image */}
             <motion.div
               initial={{ opacity: 0 }}

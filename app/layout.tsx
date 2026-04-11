@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono, Lora } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { AuthModal } from '@/components/auth/auth-modal'
+import { AuthSessionBootstrap } from '@/components/auth/auth-session-bootstrap'
 import { StoreProvider } from '@/lib/store/provider'
 import './globals.css'
 
@@ -58,7 +60,9 @@ export default function RootLayout({
     <html lang="en" className={`${geist.variable} ${geistMono.variable} ${lora.variable}`}>
       <body className="font-sans antialiased">
         <StoreProvider>
+          <AuthSessionBootstrap />
           {children}
+          <AuthModal />
         </StoreProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

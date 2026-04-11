@@ -14,7 +14,6 @@ import { PageTransition } from '@/components/shared/page-transition'
 import { UserAvatar } from '@/components/shared/user-avatar'
 import { Button } from '@/components/ui/button'
 import { useArticle } from '@/lib/hooks/use-articles'
-import { fakeArticles, getArticlePreview } from '@/lib/data/fake-articles'
 
 interface ArticlePageProps {
   params: Promise<{ slug: string }>
@@ -22,21 +21,28 @@ interface ArticlePageProps {
 
 export default function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = use(params)
-  const { article, toggleClap, toggleSave } = useArticle(slug)
+  const { article, isLoading, relatedArticles, toggleClap, toggleSave } = useArticle(slug)
   const [isFollowing, setIsFollowing] = useState(false)
   const commentsRef = useRef<HTMLElement>(null)
 
-  if (!article) {
+  if (!isLoading && !article) {
     notFound()
   }
 
-  const relatedArticles = fakeArticles
-    .filter(a => a.id !== article.id && a.tags.some(t => article.tags.includes(t)))
-    .slice(0, 3)
-    .map(getArticlePreview)
-
   const scrollToComments = () => {
     commentsRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  if (isLoading || !article) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="text-center text-muted-foreground">Loading article...</div>
+        </main>
+        <Footer />
+      </div>
+    )
   }
 
   return (

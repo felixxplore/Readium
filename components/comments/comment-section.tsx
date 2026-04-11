@@ -13,7 +13,7 @@ interface CommentSectionProps {
 
 export const CommentSection = forwardRef<HTMLElement, CommentSectionProps>(
   function CommentSection({ articleId }, ref) {
-    const { comments, addComment, addReply, toggleLike } = useComments(articleId)
+    const { comments, isLoading, error, addComment, addReply, toggleLike } = useComments(articleId)
     const { isAuthenticated } = useAppSelector(state => state.auth)
 
     return (
@@ -46,6 +46,18 @@ export const CommentSection = forwardRef<HTMLElement, CommentSectionProps>(
 
           {/* Comments List */}
           <div className="space-y-0">
+            {isLoading && (
+              <p className="py-8 text-center text-muted-foreground">
+                Loading responses...
+              </p>
+            )}
+
+            {error && (
+              <p className="pb-6 text-center text-sm text-destructive">
+                {error}
+              </p>
+            )}
+
             {comments.map(comment => (
               <CommentCard
                 key={comment.id}
@@ -55,7 +67,7 @@ export const CommentSection = forwardRef<HTMLElement, CommentSectionProps>(
               />
             ))}
 
-            {comments.length === 0 && (
+            {!isLoading && comments.length === 0 && (
               <p className="py-8 text-center text-muted-foreground">
                 No responses yet. Be the first to share your thoughts!
               </p>

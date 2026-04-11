@@ -7,7 +7,7 @@ import { useAppSelector } from '@/lib/store/hooks'
 import { cn } from '@/lib/utils'
 
 interface CommentFormProps {
-  onSubmit: (content: string) => void
+  onSubmit: (content: string) => void | Promise<void>
   onCancel?: () => void
   placeholder?: string
   submitLabel?: string
@@ -25,6 +25,7 @@ export function CommentForm({
 }: CommentFormProps) {
   const [content, setContent] = useState('')
   const [isFocused, setIsFocused] = useState(autoFocus)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { user } = useAppSelector(state => state.auth)
 
@@ -43,12 +44,17 @@ export function CommentForm({
     }
   }, [content])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (content.trim()) {
-      onSubmit(content.trim())
-      setContent('')
-      setIsFocused(false)
+      try {
+        setIsSubmitting(true)
+        await onSubmit(content.trim())
+        setContent('')
+        setIsFocused(false)
+      } finally {
+        setIsSubmitting(false)
+      }
     }
   }
 
@@ -66,6 +72,7 @@ export function CommentForm({
             onFocus={() => setIsFocused(true)}
             placeholder={placeholder}
             rows={1}
+            disabled={isSubmitting}
             className={cn(
               'w-full resize-none bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none',
               isFocused ? 'min-h-[100px]' : 'min-h-[40px]'
@@ -85,15 +92,16 @@ export function CommentForm({
               setIsFocused(false)
               onCancel?.()
             }}
+            disabled={isSubmitting}
           >
             Cancel
           </Button>
           <Button
             type="submit"
             size="sm"
-            disabled={!content.trim()}
+            disabled={!content.trim() || isSubmitting}
           >
-            {submitLabel}
+            {isSubmitting ? 'Sending...' : submitLabel}
           </Button>
         </div>
       )}

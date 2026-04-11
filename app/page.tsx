@@ -6,52 +6,21 @@ import { Footer } from '@/components/layout/footer'
 import { Sidebar } from '@/components/layout/sidebar'
 import { ArticleCard } from '@/components/articles/article-card'
 import { PageTransition, StaggerChildren, StaggerItem } from '@/components/shared/page-transition'
-import { fakeArticles, getArticlePreview } from '@/lib/data/fake-articles'
+import { useArticles } from '@/lib/hooks/use-articles'
 import { cn } from '@/lib/utils'
 
 const tabs = ['For you', 'Following', 'Technology', 'Design', 'Startups']
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState('For you')
-  const [savedArticles, setSavedArticles] = useState<Set<string>>(new Set())
+  const { articlePreviews, isLoading, error, toggleSave } = useArticles()
 
   const articles = useMemo(() => {
-    let filtered = fakeArticles
-
-    if (activeTab === 'Technology') {
-      filtered = fakeArticles.filter(a => 
-        a.tags.some(t => ['AI', 'Machine Learning', 'Technology', 'Web Development', 'TypeScript', 'JavaScript'].includes(t))
-      )
-    } else if (activeTab === 'Design') {
-      filtered = fakeArticles.filter(a => 
-        a.tags.some(t => ['Design', 'UI/UX', 'Design Systems', 'Accessibility'].includes(t))
-      )
-    } else if (activeTab === 'Startups') {
-      filtered = fakeArticles.filter(a => 
-        a.tags.some(t => ['Startups', 'Venture Capital', 'Entrepreneurship', 'Product'].includes(t))
-      )
-    }
-
-    return filtered.map(article => ({
-      ...getArticlePreview(article),
-      isSaved: savedArticles.has(article.id),
-    }))
-  }, [activeTab, savedArticles])
+    return articlePreviews
+  }, [activeTab, articlePreviews])
 
   const featuredArticle = articles[0]
   const feedArticles = articles.slice(1)
-
-  const handleSave = (articleId: string) => {
-    setSavedArticles(prev => {
-      const next = new Set(prev)
-      if (next.has(articleId)) {
-        next.delete(articleId)
-      } else {
-        next.add(articleId)
-      }
-      return next
-    })
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,7 +31,7 @@ export default function HomePage() {
           {/* Featured Article */}
           <section className="mb-12">
             {featuredArticle && (
-              <ArticleCard article={featuredArticle} featured onSave={handleSave} />
+              <ArticleCard article={featuredArticle} featured onSave={toggleSave} />
             )}
           </section>
 
@@ -88,15 +57,27 @@ export default function HomePage() {
               </nav>
 
               {/* Article Feed */}
-              <StaggerChildren>
-                {feedArticles.map(article => (
-                  <StaggerItem key={article.id}>
-                    <ArticleCard article={article} onSave={handleSave} />
-                  </StaggerItem>
-                ))}
-              </StaggerChildren>
+              {isLoading ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <p>Loading stories...</p>
+                </div>
+              ) : (
+                <StaggerChildren>
+                  {feedArticles.map(article => (
+                    <StaggerItem key={article.id}>
+                      <ArticleCard article={article} onSave={toggleSave} />
+                    </StaggerItem>
+                  ))}
+                </StaggerChildren>
+              )}
 
-              {feedArticles.length === 0 && (
+              {error && (
+                <div className="py-6 text-sm text-destructive">
+                  <p>{error}</p>
+                </div>
+              )}
+
+              {!isLoading && feedArticles.length === 0 && (
                 <div className="py-12 text-center text-muted-foreground">
                   <p>No articles found in this category.</p>
                 </div>

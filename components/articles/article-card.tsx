@@ -9,6 +9,15 @@ import { UserAvatar } from '@/components/shared/user-avatar'
 import type { ArticlePreview } from '@/types'
 import { cn } from '@/lib/utils'
 
+const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&q=80'
+
+function getCoverImage(src: string | null | undefined): string {
+  if (src && src.trim()) {
+    return src
+  }
+  return PLACEHOLDER_IMAGE
+}
+
 interface ArticleCardProps {
   article: ArticlePreview
   onSave?: (id: string) => void
@@ -32,7 +41,7 @@ export function ArticleCard({ article, onSave, featured = false }: ArticleCardPr
         <Link href={`/article/${article.slug}`} className="block">
           <div className="relative aspect-[16/9] w-full overflow-hidden">
             <Image
-              src={article.coverImage}
+              src={getCoverImage(article.coverImage)}
               alt={article.title}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -125,8 +134,8 @@ export function ArticleCard({ article, onSave, featured = false }: ArticleCardPr
       >
         <div className="relative h-28 w-40 overflow-hidden rounded-md">
           <Image
-            src={article.coverImage}
-            alt=""
+            src={getCoverImage(article.coverImage)}
+            alt={article.title}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />

@@ -10,7 +10,9 @@ import { Input } from '@/components/ui/input'
 import { UserAvatar } from '@/components/shared/user-avatar'
 import { PageTransition } from '@/components/shared/page-transition'
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks'
-import { updateProfile } from '@/lib/features/auth/auth-slice'
+import { setUser } from '@/lib/features/auth/auth-slice'
+import { updateProfile as updateProfileAPI } from '@/lib/api/user'
+import { storeTokens } from '@/lib/auth/session'
 import { cn } from '@/lib/utils'
 
 const tabs = ['Profile', 'Account', 'Notifications']
@@ -23,9 +25,11 @@ export default function SettingsPage() {
 
   const [name, setName] = useState(user?.name || '')
   const [bio, setBio] = useState(user?.bio || '')
+  const [avatar, setAvatar] = useState(user?.avatar || '')
   const [email, setEmail] = useState(user?.email || '')
   const [isSaving, setIsSaving] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
 
   if (!isAuthenticated || !user) {
     return (
@@ -44,21 +48,49 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     setSuccessMessage('')
+    setErrorMessage('')
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    try {
+      // Call the API to update profile
+      const updatedProfile = await updateProfileAPI({
+        name,
+        avatar,
+        bio,
+      })
 
-    dispatch(updateProfile({ name, bio, email }))
-    setIsSaving(false)
-    setSuccessMessage('Profile updated successfully!')
+      // Update Redux store with new profile data
+      dispatch(setUser({
+        id: user?.id || '',
+        username: user?.username || '',
+        name: updatedProfile.name,
+        email: updatedProfile.email,
+        avatar: updatedProfile.avatar,
+        bio: updatedProfile.bio,
+        followers: updatedProfile.followerCount,
+        following: updatedProfile.followingCount,
+        articlesCount: 0,
+        createdAt: user?.createdAt || new Date().toISOString(),
+      }))
 
-    setTimeout(() => setSuccessMessage(''), 3000)
+      // Store the updated tokens with new profile
+      const tokens = JSON.parse(localStorage.getItem('auth_tokens') || '{}')
+      if (tokens.accessToken && tokens.refreshToken) {
+        storeTokens(tokens.accessToken, tokens.refreshToken, updatedProfile)
+      }
+
+      setSuccessMessage('Profile updated successfully!')
+      setTimeout(() => setSuccessMessage(''), 3000)
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to update profile')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleAvatarChange = () => {
     const url = window.prompt('Enter new avatar URL')
     if (url) {
-      dispatch(updateProfile({ avatar: url }))
+      setAvatar(url)
     }
   }
 
@@ -98,15 +130,28 @@ export default function SettingsPage() {
                   className="space-y-8"
                 >
                   {/* Avatar */}
-                  <div className="flex items-center gap-6">
-                    <UserAvatar src={user.avatar} name={user.name} size="xl" className="size-20" />
-                    <div>
-                      <Button variant="outline" size="sm" onClick={handleAvatarChange}>
-                        Change avatar
-                      </Button>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Recommended: Square image, at least 400x400px
-                      </p>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-6">
+                      <UserAvatar src={avatar} name={name} size="xl" className="size-20" />
+                      <div>
+                        <Button variant="outline" size="sm" onClick={handleAvatarChange}>
+                          Change avatar
+                        </Button>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          Recommended: Square image, at least 400x400px
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="avatar" className="text-sm font-medium">
+                        Avatar URL
+                      </label>
+                      <Input
+                        id="avatar"
+                        value={avatar}
+                        onChange={e => setAvatar(e.target.value)}
+                        placeholder="https://example.com/avatar.jpg"
+                      />
                     </div>
                   </div>
 
@@ -142,7 +187,7 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Save Button */}
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col gap-4">
                     <Button onClick={handleSave} disabled={isSaving}>
                       {isSaving ? 'Saving...' : 'Save changes'}
                     </Button>
@@ -150,9 +195,18 @@ export default function SettingsPage() {
                       <motion.span
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="text-sm text-primary"
+                        className="text-sm text-green-600 dark:text-green-400"
                       >
-                        {successMessage}
+                        ✓ {successMessage}
+                      </motion.span>
+                    )}
+                    {errorMessage && (
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-sm text-red-600 dark:text-red-400"
+                      >
+                        ✕ {errorMessage}
                       </motion.span>
                     )}
                   </div>

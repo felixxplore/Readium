@@ -171,7 +171,7 @@ function SearchContent() {
                               {result.user && (
                                 <Link href={`/profile/${result.user.username}`}>
                                   <div className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors">
-                                    <UserAvatar user={result.user} size="lg" />
+                                    <UserAvatar src={result.user.avatar} name={result.user.name} size="lg" />
                                     <div className="flex-1 min-w-0">
                                       <h3 className="font-semibold truncate">
                                         {result.user.name}
@@ -186,7 +186,7 @@ function SearchContent() {
                                       )}
                                     </div>
                                     <div className="text-sm text-muted-foreground">
-                                      {result.user.followersCount.toLocaleString()} followers
+                                      {result.user.followers.toLocaleString()} followers
                                     </div>
                                   </div>
                                 </Link>
