@@ -27,12 +27,16 @@ public class AdminInitializer implements CommandLineRunner {
     @Value("${admin.name:Admin}")
     private String adminName;
 
+    @Value("${admin.username:admin}")
+    private String adminUsername;
+
     @Override
     @Transactional
     public void run(String... args) throws Exception {
         if (!userRepository.existsByEmail(adminEmail)) {
             User admin = new User();
             admin.setName(adminName);
+            admin.setUsername(adminUsername);
             admin.setEmail(adminEmail);
             admin.setPassword(passwordEncoder.encode(adminPassword));
             admin.setRole(Role.ADMIN);

@@ -1,5 +1,6 @@
 package com.felix.bms.repository;
 
+import com.felix.bms.entity.BlogPost;
 import com.felix.bms.entity.Comment;
 import com.felix.bms.entity.Like;
 import com.felix.bms.entity.User;
@@ -16,6 +17,11 @@ public interface LikeRepository extends JpaRepository<Like, Long> {
 
     Optional<Like> findByComment_IdAndUser_Email(Long commentId, String email);
 
-
     boolean existsByUserAndComment(User user, Comment comment);
+
+    boolean existsByUserAndPost(User user, BlogPost post);
+
+    long countByPost_Id(Long postId);
+
+    long countByComment_Id(Long commentId);
 }

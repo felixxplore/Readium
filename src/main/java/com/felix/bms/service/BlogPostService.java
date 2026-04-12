@@ -5,6 +5,7 @@ import com.felix.bms.dto.comment.CreateCommentRequest;
 import com.felix.bms.dto.post.BlogPostResponse;
 import com.felix.bms.dto.post.CreatePostRequest;
 import com.felix.bms.dto.post.UpdatePostRequest;
+import com.felix.bms.dto.user.AuthorSummary;
 import com.felix.bms.entity.BlogPost;
 import com.felix.bms.entity.Comment;
 import com.felix.bms.entity.User;
@@ -13,12 +14,16 @@ import com.felix.bms.exception.ResourceNotFoundException;
 import com.felix.bms.mapper.CommentMapper;
 import com.felix.bms.repository.BlogPostRepository;
 import com.felix.bms.repository.CommentRepository;
+import com.felix.bms.repository.LikeRepository;
 import com.felix.bms.repository.UserRepository;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -38,37 +43,63 @@ public class BlogPostService {
     private final UserRepository userRepository;
     private final EmailService emailService;
     private final CommentRepository commentRepository;
+    private final LikeRepository likeRepository;
+    private final NotificationService notificationService;
 
-    public List<BlogPostResponse> getAllPosts() {
-        return blogPostRepository.findAll().stream()
-                .map(this::toResponse)
-                .toList();
+    public Page<BlogPostResponse> getAllPosts(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return blogPostRepository.findAllByOrderByCreatedAtDesc(pageable)
+                .map(this::toResponse);
     }
 
     public BlogPostResponse toResponse(BlogPost blogPost){
+        List<CommentResponse> comments = blogPost.getComments().stream()
+                .filter(comment -> comment.getParentComment() == null)
+                .map(commentMapper::toResponse)
+                .toList();
 
-        List<CommentResponse> comments = blogPost.getComments().stream().map(commentMapper::toResponse).toList();
+        long likeCount = likeRepository.countByPost_Id(blogPost.getId());
 
         return new BlogPostResponse(
                 blogPost.getId(),
                 blogPost.getTitle(),
+                blogPost.getSubtitle(),
                 blogPost.getContent(),
-                blogPost.getAuthor().getName(),
+                blogPost.getExcerpt(),
+                blogPost.getCoverImage(),
+                blogPost.getTags(),
+                toAuthorSummary(blogPost.getAuthor()),
                 blogPost.getCreatedAt(),
+                blogPost.getUpdatedAt(),
+                likeCount,
                 comments
         );
     }
 
 
+    @Cacheable(value = "blogPost", key = "#id")
     public BlogPostResponse getPostById(Long id) {
         BlogPost blog = blogPostRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("blog not found"));
 
         return toResponse(blog);
     }
 
-    public List<BlogPostResponse> getAllPostsByUserEmail(String email){
+    public Page<BlogPostResponse> getAllPostsByUserEmail(String email, int page, int size){
+       Pageable pageable = PageRequest.of(page, size);
+       return blogPostRepository.findByAuthor_EmailOrderByCreatedAtDesc(email, pageable).map(this::toResponse);
+    }
 
-       return blogPostRepository.findByAuthor_Email(email).stream().map(this::toResponse).toList();
+    public Page<BlogPostResponse> getPostsByAuthorUsername(String username, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return blogPostRepository.findByAuthor_UsernameOrderByCreatedAtDesc(username, pageable)
+                .map(this::toResponse);
+    }
+
+    public Page<BlogPostResponse> searchPosts(String query, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return blogPostRepository
+                .findByTitleContainingIgnoreCaseOrContentContainingIgnoreCaseOrderByCreatedAtDesc(query, query, pageable)
+                .map(this::toResponse);
     }
 
 
@@ -79,6 +110,10 @@ public class BlogPostService {
         BlogPost post=new BlogPost();
         post.setAuthor(user);
         post.setTitle(request.title());
+        post.setSubtitle(request.subtitle());
+        post.setExcerpt(resolveExcerpt(request.excerpt(), request.content()));
+        post.setCoverImage(request.coverImage());
+        post.setTags(request.tags() == null ? List.of() : request.tags());
         post.setContent(request.content());
 
         post = blogPostRepository.save(post);
@@ -93,6 +128,7 @@ public class BlogPostService {
     }
 
     @Transactional
+    @CacheEvict(value = "blogPost", key = "#id")
     public BlogPostResponse updatePost(Long id, @Valid UpdatePostRequest request, String email) throws AccessDeniedException {
         BlogPost post = blogPostRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Post not found with this id : " + id));
 
@@ -101,6 +137,10 @@ public class BlogPostService {
         }
 
         post.setTitle(request.title());
+        post.setSubtitle(request.subtitle());
+        post.setExcerpt(resolveExcerpt(request.excerpt(), request.content()));
+        post.setCoverImage(request.coverImage());
+        post.setTags(request.tags() == null ? List.of() : request.tags());
         post.setContent(request.content());
         post=blogPostRepository.save(post);
         return toResponse(post);
@@ -108,12 +148,15 @@ public class BlogPostService {
 
 
     @Transactional
+    @CacheEvict(value = "blogPost", key = "#id")
     public void deletePost(Long id, String email) throws AccessDeniedException {
         BlogPost post = blogPostRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Post not found with this id : " + id));
 
         User user = getUserByEmail(email);
-        if(user.getRole() != Role.ADMIN){
-            throw new AccessDeniedException("Only Admin can delete posts");
+        boolean isAdmin = user.getRole() == Role.ADMIN;
+        boolean isAuthor = post.getAuthor().getEmail().equals(email);
+        if(!isAdmin && !isAuthor){
+            throw new AccessDeniedException("You can only delete your own posts unless you are an admin");
         }
 
         blogPostRepository.delete(post);
@@ -135,11 +178,10 @@ public class BlogPostService {
         commentRepository.save(comment);
         blogPostRepository.save(post);
 
-        // send email notification of comment to post author
-//        if(!post.getAuthor().getEmail().equals(commentEmail)){
-//            emailService.sendCommentNotification(post.getAuthor(), comment);
-//        }
-
+        // Create notification for post author
+        if(!post.getAuthor().getId().equals(user.getId())){
+            notificationService.createCommentNotification(post.getAuthor(), user, post);
+        }
 
         return commentMapper.toResponse(comment);
     }
@@ -155,15 +197,19 @@ public class BlogPostService {
         reply.setParentComment(parent);
         Comment comment=commentRepository.save(reply);
 
-//        emailService.sendCommentReplyNotification(parent.getAuthor().getEmail(),author.getName(), content.content());
+        // Create notification for parent comment author
+        if(!parent.getAuthor().getId().equals(author.getId())){
+            notificationService.createReplyNotification(parent.getAuthor(), author, parent);
+        }
 
         return commentMapper.toResponse(comment);
     }
 
-    public List<CommentResponse> getAllCommentsOfPost(Long postId){
-        BlogPost post = blogPostRepository.findById(postId).orElseThrow(() -> new ResourceNotFoundException("Post not found with this id : " + postId));
-
-        return post.getComments().stream().map(commentMapper::toResponse).toList();
+    public Page<CommentResponse> getAllCommentsOfPost(Long postId, int page, int size){
+        blogPostRepository.findById(postId).orElseThrow(() -> new ResourceNotFoundException("Post not found with this id : " + postId));
+        Pageable pageable = PageRequest.of(page, size);
+        return commentRepository.findByPostIdAndParentCommentIsNullOrderByCreatedAtDesc(postId, pageable)
+                .map(commentMapper::toResponse);
     }
 
 
@@ -193,5 +239,26 @@ public class BlogPostService {
         commentRepository.delete(comment);
     }
 
+
+    private AuthorSummary toAuthorSummary(User author) {
+        return new AuthorSummary(
+                author.getId(),
+                author.getName(),
+                author.getUsername(),
+                author.getPicture(),
+                author.getBio()
+        );
+    }
+
+    private String resolveExcerpt(String excerpt, String content) {
+        if (excerpt != null && !excerpt.isBlank()) {
+            return excerpt;
+        }
+        if (content == null || content.isBlank()) {
+            return "";
+        }
+        int excerptLength = Math.min(content.length(), 180);
+        return content.substring(0, excerptLength);
+    }
 
 }

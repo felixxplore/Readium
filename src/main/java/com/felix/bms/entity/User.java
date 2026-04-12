@@ -8,7 +8,13 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "users", uniqueConstraints = @UniqueConstraint(columnNames = "email"))
+@Table(
+        name = "users",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = "email"),
+                @UniqueConstraint(columnNames = "username")
+        }
+)
 @Getter @Setter @NoArgsConstructor
 public class User {
 
@@ -20,12 +26,18 @@ public class User {
     private String name;
 
     @Column(nullable = false, unique = true)
+    private String username;
+
+    @Column(nullable = false, unique = true)
     private String email;
 
     @Column(nullable = false)
     private String password;
 
     private String picture;
+
+    @Column(length = 500)
+    private String bio;
 
     @Enumerated(EnumType.STRING)
     private Role role= Role.USER;

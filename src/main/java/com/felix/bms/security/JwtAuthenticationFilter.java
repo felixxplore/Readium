@@ -45,18 +45,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String jwt;
         final String userEmail;
 
-        if (permitAllMatcher.matches(request)) {
+        if (permitAllMatcher.matches(request) && !requiresAuthentication(request)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-         if(authHeader == null || !authHeader.startsWith("Bearer")){
-             resolver.resolveException(
-                     request,
-                     response,
-                     null,
-                     new TokenMissingException("Required token for process request") // or better: custom exception
-             );
+         if(authHeader == null || !authHeader.startsWith("Bearer ")){
+             filterChain.doFilter(request, response);
              return;
          }
 
@@ -93,5 +88,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     }
 
+    private boolean requiresAuthentication(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return "/api/user/me".equals(path) || "/api/post/my".equals(path);
+    }
 
 }

@@ -14,21 +14,30 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class FollowService {
 
-
     private final FollowRelationshipRepository followRepository;
-
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public void followUser(Long followerId, Long followingId) {
+        if (followerId.equals(followingId)) {
+            throw new IllegalArgumentException("User cannot follow themselves");
+        }
         if (followRepository.findByFollowerIdAndFollowingId(followerId, followingId).isEmpty()) {
             FollowRelationship rel = new FollowRelationship();
-            rel.setFollower(userRepository.findById(followerId).orElseThrow(()-> new UsernameNotFoundException("Follower user not found with this id : "+ followerId)));
-            rel.setFollowing(userRepository.findById(followingId).orElseThrow(()-> new UsernameNotFoundException("Following user not found with this id : "+ followingId)));
+            var follower = userRepository.findById(followerId).orElseThrow(()-> new UsernameNotFoundException("Follower user not found with this id : "+ followerId));
+            var following = userRepository.findById(followingId).orElseThrow(()-> new UsernameNotFoundException("Following user not found with this id : "+ followingId));
+            rel.setFollower(follower);
+            rel.setFollowing(following);
             followRepository.save(rel);
+            // Create notification for the user being followed
+            notificationService.createFollowNotification(following, follower);
         }
     }
 
     public void unfollowUser(Long followerId, Long followingId) {
+        if (followerId.equals(followingId)) {
+            throw new IllegalArgumentException("User cannot unfollow themselves");
+        }
         followRepository.findByFollowerIdAndFollowingId(followerId, followingId)
                 .ifPresent(followRepository::delete);
     }

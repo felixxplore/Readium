@@ -3,5 +3,6 @@ spring:
     name: Blog Management Application
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+ 
 
 

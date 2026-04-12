@@ -2,6 +2,8 @@ package com.felix.bms.config;
 
 import com.felix.bms.security.JwtAuthenticationFilter;
 import com.felix.bms.security.JwtService;
+import com.felix.bms.security.OAuth2AuthenticationSuccessHandler;
+import com.felix.bms.security.GoogleOAuth2UserService;
 import com.felix.bms.service.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,16 +52,23 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity httpSecurity, JwtAuthenticationFilter jwtAuthenticationFilter ) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity httpSecurity, JwtAuthenticationFilter jwtAuthenticationFilter,
+                                          OAuth2AuthenticationSuccessHandler oauth2SuccessHandler,
+                                          GoogleOAuth2UserService googleOAuth2UserService) throws Exception {
         httpSecurity
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.GET, "/api/post").permitAll()
+                        .requestMatchers("/api/user/me", "/api/post/my").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/post/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/user/*").permitAll()
                         .requestMatchers("/api/auth/**", "/oauth2/**","/swagger-ui/**","/v3/api-docs/**").permitAll()
-                        .requestMatchers(HttpMethod.DELETE,"api/post/id").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 ).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo.userService(googleOAuth2UserService))
+                        .successHandler(oauth2SuccessHandler)
+                )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return httpSecurity.build();
@@ -81,7 +90,8 @@ public class SecurityConfig {
                 PathPatternRequestMatcher.withDefaults().matcher("/api/auth/**"),
                 PathPatternRequestMatcher.withDefaults().matcher("/swagger-ui/**"),
                 PathPatternRequestMatcher.withDefaults().matcher("/v3/api-docs/**"),
-                PathPatternRequestMatcher.withDefaults().matcher( HttpMethod.GET, "/api/post"),
+                PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/post/**"),
+                PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/user/*"),
                 PathPatternRequestMatcher.withDefaults().matcher("/oauth2/**")
 
          );

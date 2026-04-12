@@ -1,0 +1,15 @@
+package com.felix.bms.repository;
+
+import com.felix.bms.entity.Notification;
+import com.felix.bms.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface NotificationRepository extends JpaRepository<Notification, Long> {
+    Page<Notification> findByRecipientOrderByCreatedAtDesc(User recipient, Pageable pageable);
+    Page<Notification> findByRecipientAndIsReadFalseOrderByCreatedAtDesc(User recipient, Pageable pageable);
+    long countByRecipientAndIsReadFalse(User recipient);
+}

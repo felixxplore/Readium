@@ -26,6 +26,7 @@ public class LikeService {
     private final BlogPostRepository blogPostRepository;
     private final CommentRepository commentRepository;
     private final EmailService emailService;
+    private final NotificationService notificationService;
 
     @Transactional
     public void likePost(Long postId, String email) {
@@ -34,13 +35,15 @@ public class LikeService {
 
         BlogPost post = blogPostRepository.findById(postId).orElseThrow(() -> new ResourceNotFoundException("post not found with this id : " + postId));
 
-        Like like=new Like();
-        like.setUser(user);
-        like.setPost(post);
-
-        Like save = likeRepository.save(like);
-
-        emailService.sendLikedNotification(post.getAuthor().getEmail(), user.getName(), LikeType.POST);
+        if (!likeRepository.existsByUserAndPost(user, post)) {
+            Like like = new Like();
+            like.setUser(user);
+            like.setPost(post);
+            likeRepository.save(like);
+            emailService.sendLikedNotification(post.getAuthor().getEmail(), user.getName(), LikeType.POST);
+            // Create notification for post author
+            notificationService.createLikeNotification(post.getAuthor(), user, post);
+        }
     }
 
     @Transactional
@@ -68,9 +71,10 @@ public class LikeService {
             like.setUser(user);
             like.setComment(comment);
             likeRepository.save(like);
+            emailService.sendLikedNotification(comment.getAuthor().getEmail(), user.getName(), LikeType.COMMENT);
+            // Create notification for comment author
+            notificationService.createLikeNotification(comment.getAuthor(), user, comment.getPost());
         }
-
-        emailService.sendLikedNotification(comment.getAuthor().getEmail(), user.getName(), LikeType.COMMENT);
     }
 
     @Transactional

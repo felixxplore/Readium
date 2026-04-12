@@ -2,6 +2,7 @@ package com.felix.bms.controller;
 
 import com.felix.bms.dto.auth.AuthRequest;
 import com.felix.bms.dto.auth.AuthResponse;
+import com.felix.bms.dto.auth.GoogleOAuthRequest;
 import com.felix.bms.dto.auth.RegisterRequest;
 import com.felix.bms.dto.token.TokenRefreshRequest;
 import com.felix.bms.service.AuthService;
@@ -26,9 +27,8 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest registerRequest) throws BadRequestException {
-         authService.register(registerRequest);
-         return ResponseEntity.ok("User register successfully");
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest registerRequest) throws BadRequestException {
+         return ResponseEntity.ok(authService.register(registerRequest));
     }
 
     @PostMapping("/login")
@@ -39,6 +39,11 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody TokenRefreshRequest tokenRefreshRequest){
         return ResponseEntity.ok(authService.refreshToken(tokenRefreshRequest));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> authenticateWithGoogle(@Valid @RequestBody GoogleOAuthRequest request) throws BadRequestException {
+        return ResponseEntity.ok(authService.authenticateWithGoogle(request));
     }
 
 }

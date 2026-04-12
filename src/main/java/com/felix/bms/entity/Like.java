@@ -8,7 +8,10 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "likes")
+@Table(name = "likes", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"user_id", "post_id"}, name = "uk_user_post_like"),
+        @UniqueConstraint(columnNames = {"user_id", "comment_id"}, name = "uk_user_comment_like")
+})
 @Getter @Setter
 public class Like {
 
