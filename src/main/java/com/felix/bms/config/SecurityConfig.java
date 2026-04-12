@@ -33,14 +33,13 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 @EnableWebSecurity
 public class SecurityConfig {
 
-
     private final JwtService jwtService;
     private final UserDetailsServiceImpl userDetailsService;
     private final HandlerExceptionResolver resolver;
 
     public SecurityConfig(JwtService jwtService,
-                          UserDetailsServiceImpl userDetailsService,
-                          @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
+            UserDetailsServiceImpl userDetailsService,
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
         this.resolver = resolver;
@@ -48,41 +47,42 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(RequestMatcher permitAllMatcher) {
-        return new JwtAuthenticationFilter( userDetailsService,jwtService, resolver, permitAllMatcher);
+        return new JwtAuthenticationFilter(userDetailsService, jwtService, resolver, permitAllMatcher);
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity, JwtAuthenticationFilter jwtAuthenticationFilter,
-                                          OAuth2AuthenticationSuccessHandler oauth2SuccessHandler,
-                                          GoogleOAuth2UserService googleOAuth2UserService) throws Exception {
+            OAuth2AuthenticationSuccessHandler oauth2SuccessHandler,
+            GoogleOAuth2UserService googleOAuth2UserService) throws Exception {
         httpSecurity
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/user/me", "/api/post/my").authenticated()
+                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/post/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/user/*").permitAll()
-                        .requestMatchers("/api/auth/**", "/oauth2/**","/swagger-ui/**","/v3/api-docs/**").permitAll()
-                        .anyRequest().authenticated()
-                ).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        .requestMatchers("/api/auth/**", "/oauth2/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .anyRequest().authenticated())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.userService(googleOAuth2UserService))
-                        .successHandler(oauth2SuccessHandler)
-                )
+                        .successHandler(oauth2SuccessHandler))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return httpSecurity.build();
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder(){
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
+            throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
-
 
     @Bean
     public RequestMatcher permitAllMatcher() {
@@ -94,10 +94,7 @@ public class SecurityConfig {
                 PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/user/*"),
                 PathPatternRequestMatcher.withDefaults().matcher("/oauth2/**")
 
-         );
+        );
     }
-
-
-
 
 }
