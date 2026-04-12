@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { getAllPosts, getMyPosts, getPostById, getPostsByAuthor } from '@/lib/api/posts'
+import { getAllPosts, getMyPosts, getPostById, getPostsByAuthor, getSavedStatus, savePost } from '@/lib/api/posts'
 import { likePost, unlikePost } from '@/lib/api/likes'
 import type { Article, ArticlePreview } from '@/types'
 
@@ -65,12 +65,19 @@ export function useArticles(page: number = 0, pageSize: number = 10) {
   }, [])
 
   const toggleSave = useCallback((articleId: string) => {
+    const postId = Number(articleId)
+    if (Number.isNaN(postId)) return
+
+    savePost(postId).catch(err => {
+      console.error('Failed to save post:', err)
+    })
+
     setArticlePreviews(prev =>
       prev.map(article => {
         if (article.id === articleId) {
           return {
             ...article,
-            isSaved: !article.isSaved,
+            isSaved: true,
           }
         }
         return article
@@ -112,13 +119,16 @@ export function useArticle(slug: string) {
       try {
         setIsLoading(true)
         const post = await getPostById(articleId)
+      const savedStatus = await getSavedStatus(articleId)
 
-        if (!isMounted) {
-          return
-        }
+      if (!isMounted) {
+        return
+      }
 
-        setArticle(post)
-
+      setArticle({
+        ...post,
+        isSaved: savedStatus.saved,
+      })
         // Load related articles by the same author
         if (post.author.username) {
           const { posts } = await getPostsByAuthor(post.author.username, 0, 3)
@@ -174,15 +184,26 @@ export function useArticle(slug: string) {
     }
   }, [article])
 
-  const toggleSave = useCallback(() => {
+  const toggleSave = useCallback(async () => {
+    if (!article) return
+
+    const postId = Number(article.id)
+    if (Number.isNaN(postId)) return
+
+    try {
+      await savePost(postId)
+    } catch (err) {
+      console.error('Failed to save post:', err)
+    }
+
     setArticle(prev => {
       if (!prev) return prev
       return {
         ...prev,
-        isSaved: !prev.isSaved,
+        isSaved: true,
       }
     })
-  }, [])
+  }, [article])
 
   return {
     article,

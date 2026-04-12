@@ -48,6 +48,21 @@ export interface PageResponse<T> {
   totalPages: number
 }
 
+export interface SavedPostResponseDto {
+  id: number
+  postId: number
+  title: string
+  subtitle: string | null
+  excerpt: string | null
+  coverImage: string | null
+  authorName: string
+  authorUsername: string
+  authorPicture: string | null
+  postCreatedAt: string
+  savedAt: string
+}
+
+
 function stripHtml(value: string) {
   return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 }
@@ -194,6 +209,29 @@ function mapPostDtoToPreview(post: BlogPostResponseDto): ArticlePreview {
   }
 }
 
+function mapSavedPostDtoToPreview(savedPost: SavedPostResponseDto): ArticlePreview {
+  return {
+    id: String(savedPost.postId),
+    slug: String(savedPost.postId),
+    title: savedPost.title,
+    subtitle: savedPost.subtitle || '',
+    excerpt: savedPost.excerpt || '',
+    coverImage: savedPost.coverImage || '',
+    author: {
+      id: String(savedPost.id), // Using saved post id as author id for now
+      username: savedPost.authorUsername,
+      name: savedPost.authorName,
+      avatar: savedPost.authorPicture || '',
+    },
+    tags: [], // Saved posts don't include tags in the response
+    readTime: 1, // Default read time
+    claps: 0, // Not provided in saved posts response
+    commentsCount: 0, // Not provided in saved posts response
+    isSaved: true, // These are saved posts
+    createdAt: savedPost.postCreatedAt,
+  }
+}
+
 export async function getAllPosts(page: number = 0, size: number = 10) {
   const response = await apiRequest<PageResponse<BlogPostResponseDto>>(
     `/post?page=${page}&size=${size}`,
@@ -219,17 +257,56 @@ export async function getMyPosts(page: number = 0, size: number = 10) {
   }
 }
 
+export interface SavedStatusResponse {
+  saved: boolean
+}
+
 export async function getSavedPosts(page: number = 0, size: number = 10) {
-  const response = await apiRequest<PageResponse<BlogPostResponseDto>>(
-    `/post/saved?page=${page}&size=${size}`,
+  const response = await apiRequest<PageResponse<SavedPostResponseDto>>(
+    `/saved-posts?page=${page}&size=${size}`,
     { method: 'GET' },
     true
   )
   return {
-    posts: response.content.map(mapPostDtoToPreview),
+    posts: response.content.map(mapSavedPostDtoToPreview),
     totalPages: response.totalPages,
     totalElements: response.totalElements,
   }
+}
+
+export async function getSavedPostsByUser(username: string, page: number = 0, size: number = 10) {
+  if (!username || username.trim() === '') {
+    console.error('[API] getSavedPostsByUser: username is empty/undefined', { username })
+    throw new Error('Username is required to fetch saved posts')
+  }
+
+  const response = await apiRequest<PageResponse<SavedPostResponseDto>>(
+    `/saved-posts/user/${encodeURIComponent(username)}?page=${page}&size=${size}`,
+    { method: 'GET' },
+    true
+  )
+
+  return {
+    posts: response.content.map(mapSavedPostDtoToPreview),
+    totalPages: response.totalPages,
+    totalElements: response.totalElements,
+  }
+}
+
+export async function getSavedStatus(postId: number) {
+  return apiRequest<SavedStatusResponse>(
+    `/saved-posts/${postId}/is-saved`,
+    { method: 'GET' },
+    true
+  )
+}
+
+export async function savePost(postId: number) {
+  return apiRequest<void>(
+    `/saved-posts/${postId}`,
+    { method: 'POST' },
+    true
+  )
 }
 
 export async function getPostsByAuthor(username: string, page: number = 0, size: number = 10) {

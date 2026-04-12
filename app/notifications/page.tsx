@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Heart, MessageCircle, UserPlus, Trash2, CheckAll } from 'lucide-react'
+import { Heart, MessageCircle, UserPlus, Trash2, CheckCheck } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
 import { PageTransition } from '@/components/shared/page-transition'
@@ -137,7 +137,7 @@ export default function NotificationsPage() {
                   onClick={handleMarkAllAsRead}
                   className="gap-2"
                 >
-                  <CheckAll className="size-4" />
+                  <CheckCheck className="size-4" />
                   Mark all as read
                 </Button>
               )}
