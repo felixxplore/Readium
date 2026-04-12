@@ -80,9 +80,13 @@ async function getAccessToken() {
   }
 
   if (refreshToken) {
-    const refreshedAccessToken = await refreshAccessToken(refreshToken)
-    updateStoredAccessToken(refreshedAccessToken)
-    return refreshedAccessToken
+    try {
+      const refreshedTokens = await refreshAccessToken(refreshToken)
+      updateStoredAccessToken(refreshedTokens.accessToken)
+      return refreshedTokens.accessToken
+    } catch {
+      return null
+    }
   }
 
   return null
@@ -205,6 +209,19 @@ export async function getAllPosts(page: number = 0, size: number = 10) {
 export async function getMyPosts(page: number = 0, size: number = 10) {
   const response = await apiRequest<PageResponse<BlogPostResponseDto>>(
     `/post/my?page=${page}&size=${size}`,
+    { method: 'GET' },
+    true
+  )
+  return {
+    posts: response.content.map(mapPostDtoToPreview),
+    totalPages: response.totalPages,
+    totalElements: response.totalElements,
+  }
+}
+
+export async function getSavedPosts(page: number = 0, size: number = 10) {
+  const response = await apiRequest<PageResponse<BlogPostResponseDto>>(
+    `/post/saved?page=${page}&size=${size}`,
     { method: 'GET' },
     true
   )

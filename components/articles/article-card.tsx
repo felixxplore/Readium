@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { Bookmark, BookmarkCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/shared/user-avatar'
+import { stripHtml } from '@/lib/utils'
 import type { ArticlePreview } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -25,6 +26,9 @@ interface ArticleCardProps {
 }
 
 export function ArticleCard({ article, onSave, featured = false }: ArticleCardProps) {
+
+  console.log("from artical card : ", article);
+
   const formattedDate = new Date(article.createdAt).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -58,7 +62,7 @@ export function ArticleCard({ article, onSave, featured = false }: ArticleCardPr
               {article.title}
             </h2>
             <p className="mb-4 line-clamp-2 text-sm text-white/80 sm:text-base">
-              {article.subtitle}
+              {stripHtml(article.subtitle)}
             </p>
             <div className="flex items-center gap-3 text-sm text-white/70">
               <span>{formattedDate}</span>
@@ -84,6 +88,7 @@ export function ArticleCard({ article, onSave, featured = false }: ArticleCardPr
         >
           <UserAvatar src={article.author.avatar} name={article.author.name} size="sm" />
           <span className="text-sm font-medium hover:underline">{article.author.name}</span>
+ 
         </Link>
 
         <Link href={`/article/${article.slug}`} className="group/link">
@@ -91,7 +96,7 @@ export function ArticleCard({ article, onSave, featured = false }: ArticleCardPr
             {article.title}
           </h2>
           <p className="mb-3 line-clamp-2 text-sm text-muted-foreground sm:text-base">
-            {article.subtitle || article.excerpt}
+            {stripHtml(article.subtitle || article.excerpt)}
           </p>
         </Link>
 

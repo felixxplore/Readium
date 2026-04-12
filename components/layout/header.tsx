@@ -3,9 +3,10 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Bell, Edit, Menu, Search, X } from 'lucide-react'
+import { Edit, Menu, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/shared/user-avatar'
+import { NotificationBell } from '@/components/shared/notification-bell'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,9 +64,7 @@ export function Header() {
                 </Button>
               </Link>
 
-              <Button variant="ghost" size="icon" aria-label="Notifications">
-                <Bell className="size-5" />
-              </Button>
+              <NotificationBell />
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -75,7 +74,7 @@ export function Header() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem asChild>
-                    <Link href={`/profile/${user.username}`} className="flex flex-col items-start gap-1">
+                    <Link href="/profile" className="flex flex-col items-start gap-1">
                       <span className="font-medium">{user.name}</span>
                       <span className="text-xs text-muted-foreground">@{user.username}</span>
                     </Link>
@@ -85,7 +84,7 @@ export function Header() {
                     <Link href="/write">Write a story</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href={`/profile/${user.username}`}>Profile</Link>
+                    <Link href="/profile">Profile</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/settings">Settings</Link>

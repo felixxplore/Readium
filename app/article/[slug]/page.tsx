@@ -1,7 +1,7 @@
 'use client'
 
-import { useRef, useState, use } from 'react'
-import { notFound } from 'next/navigation'
+import { useRef, useState, use, useEffect } from 'react'
+import { notFound, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
@@ -13,6 +13,17 @@ import { ArticleCard } from '@/components/articles/article-card'
 import { PageTransition } from '@/components/shared/page-transition'
 import { UserAvatar } from '@/components/shared/user-avatar'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { followUser, unfollowUser } from '@/lib/api/follow'
+import { getCurrentUser } from '@/lib/api/user'
+import { deletePost } from '@/lib/api/posts'
 import { useArticle } from '@/lib/hooks/use-articles'
 
 interface ArticlePageProps {
@@ -20,10 +31,27 @@ interface ArticlePageProps {
 }
 
 export default function ArticlePage({ params }: ArticlePageProps) {
+  const router = useRouter()
   const { slug } = use(params)
   const { article, isLoading, relatedArticles, toggleClap, toggleSave } = useArticle(slug)
   const [isFollowing, setIsFollowing] = useState(false)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const commentsRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const user = await getCurrentUser()
+        setCurrentUser(user)
+      } catch (error) {
+        // User not logged in or error, set to null
+        setCurrentUser(null)
+      }
+    }
+    fetchCurrentUser()
+  }, [])
 
   if (!isLoading && !article) {
     notFound()
@@ -31,6 +59,50 @@ export default function ArticlePage({ params }: ArticlePageProps) {
 
   const scrollToComments = () => {
     commentsRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const handleFollowToggle = async () => {
+    if (!article) {
+      return
+    }
+
+    const userId = Number(article.author.id)
+    if (Number.isNaN(userId)) {
+      console.error('Invalid author id for follow action:', article.author.id)
+      return
+    }
+
+    try {
+      if (isFollowing) {
+        await unfollowUser(userId)
+      } else {
+        await followUser(userId)
+      }
+      setIsFollowing(prev => !prev)
+    } catch (err) {
+      console.error('Failed to toggle follow:', err)
+    }
+  }
+
+  const handleEdit = () => {
+    if (!article) return
+    router.push(`/write/${article.id}`)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!article) return
+
+    setIsDeleting(true)
+    try {
+      await deletePost(Number(article.id))
+      // Redirect to profile after successful deletion
+      router.push('/profile')
+    } catch (err) {
+      console.error('Failed to delete post:', err)
+      setShowDeleteDialog(false)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   if (isLoading || !article) {
@@ -44,6 +116,16 @@ export default function ArticlePage({ params }: ArticlePageProps) {
       </div>
     )
   }
+
+  console.log('ArticlePage: Article loaded:', {
+    id: article.id,
+    title: article.title,
+    author: {
+      id: article.author.id,
+      username: article.author.username,
+      name: article.author.name
+    }
+  })
 
   return (
     <div className="min-h-screen bg-background">
@@ -68,7 +150,10 @@ export default function ArticlePage({ params }: ArticlePageProps) {
               <ArticleHeader
                 article={article}
                 isFollowing={isFollowing}
-                onFollow={() => setIsFollowing(!isFollowing)}
+                onFollow={handleFollowToggle}
+                isOwnPost={String(currentUser?.id) === article.author.id}
+                onEdit={String(currentUser?.id) === article.author.id ? handleEdit : undefined}
+                onDelete={String(currentUser?.id) === article.author.id ? () => setShowDeleteDialog(true) : undefined}
               />
 
               <ArticleContent article={article} />
@@ -91,12 +176,14 @@ export default function ArticlePage({ params }: ArticlePageProps) {
                       {article.author.bio}
                     </p>
                   </div>
-                  <Button
-                    variant={isFollowing ? 'secondary' : 'default'}
-                    onClick={() => setIsFollowing(!isFollowing)}
-                  >
-                    {isFollowing ? 'Following' : 'Follow'}
-                  </Button>
+                  {currentUser?.id !== article.author.id && (
+                    <Button
+                      variant={isFollowing ? 'secondary' : 'default'}
+                      onClick={handleFollowToggle}
+                    >
+                      {isFollowing ? 'Following' : 'Follow'}
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -133,6 +220,26 @@ export default function ArticlePage({ params }: ArticlePageProps) {
           </div>
         </PageTransition>
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Delete Post</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete this post? This action cannot be undone.
+          </AlertDialogDescription>
+          <div className="flex gap-4">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Footer />
     </div>

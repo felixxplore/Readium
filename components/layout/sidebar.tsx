@@ -52,12 +52,12 @@ export function Sidebar() {
                 transition={{ delay: index * 0.1 }}
                 className="flex items-start gap-3"
               >
-                <Link href={`/profile/${user.username}`}>
+                <Link href="/profile">
                   <UserAvatar src={user.avatar} name={user.name} size="lg" />
                 </Link>
                 <div className="min-w-0 flex-1">
                   <Link
-                    href={`/profile/${user.username}`}
+                    href="/profile"
                     className="block font-medium hover:underline"
                   >
                     {user.name}

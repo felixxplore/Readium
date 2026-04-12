@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
+import { Upload } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,7 @@ import { PageTransition } from '@/components/shared/page-transition'
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks'
 import { setUser } from '@/lib/features/auth/auth-slice'
 import { updateProfile as updateProfileAPI } from '@/lib/api/user'
+import { uploadImage } from '@/lib/api/upload'
 import { storeTokens } from '@/lib/auth/session'
 import { cn } from '@/lib/utils'
 
@@ -20,6 +22,7 @@ const tabs = ['Profile', 'Account', 'Notifications']
 export default function SettingsPage() {
   const router = useRouter()
   const dispatch = useAppDispatch()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { user, isAuthenticated } = useAppSelector(state => state.auth)
   const [activeTab, setActiveTab] = useState('Profile')
 
@@ -28,6 +31,7 @@ export default function SettingsPage() {
   const [avatar, setAvatar] = useState(user?.avatar || '')
   const [email, setEmail] = useState(user?.email || '')
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -88,15 +92,43 @@ export default function SettingsPage() {
   }
 
   const handleAvatarChange = () => {
-    const url = window.prompt('Enter new avatar URL')
-    if (url) {
-      setAvatar(url)
+    fileInputRef.current?.click()
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploadingAvatar(true)
+    setErrorMessage('')
+
+    try {
+      const uploadedUrl = await uploadImage(file)
+      setAvatar(uploadedUrl)
+      setSuccessMessage('Avatar uploaded successfully!')
+      setTimeout(() => setSuccessMessage(''), 3000)
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to upload avatar')
+    } finally {
+      setIsUploadingAvatar(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
 
       <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
         <PageTransition>
@@ -134,17 +166,23 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-6">
                       <UserAvatar src={avatar} name={name} size="xl" className="size-20" />
                       <div>
-                        <Button variant="outline" size="sm" onClick={handleAvatarChange}>
-                          Change avatar
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleAvatarChange}
+                          disabled={isUploadingAvatar}
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          {isUploadingAvatar ? 'Uploading...' : 'Upload avatar'}
                         </Button>
                         <p className="mt-2 text-sm text-muted-foreground">
-                          Recommended: Square image, at least 400x400px
+                          Recommended: Square image, at least 400x400px (max 5MB)
                         </p>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="avatar" className="text-sm font-medium">
-                        Avatar URL
+                        Avatar URL (or upload above)
                       </label>
                       <Input
                         id="avatar"

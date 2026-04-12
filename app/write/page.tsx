@@ -1,16 +1,18 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { ImagePlus, X } from 'lucide-react'
+import { ImagePlus, X, Upload } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { TiptapEditor } from '@/components/editor/tiptap-editor'
 import { Button } from '@/components/ui/button'
 import { PageTransition } from '@/components/shared/page-transition'
+import { Loader, InlineLoader } from '@/components/shared/loader'
 import { useAppSelector } from '@/lib/store/hooks'
 import { createPost } from '@/lib/api/posts'
+import { uploadImage } from '@/lib/api/upload'
 
 const DRAFT_KEY = 'readium-draft'
 
@@ -26,6 +28,7 @@ interface Draft {
 export default function WritePage() {
   const router = useRouter()
   const { user, isAuthenticated } = useAppSelector(state => state.auth)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [title, setTitle] = useState('')
   const [subtitle, setSubtitle] = useState('')
@@ -34,6 +37,7 @@ export default function WritePage() {
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [isPublishing, setIsPublishing] = useState(false)
+  const [isUploadingCover, setIsUploadingCover] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [error, setError] = useState('')
 
@@ -77,10 +81,32 @@ export default function WritePage() {
   const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && tagInput.trim() && tags.length < 5) {
       e.preventDefault()
-      if (!tags.includes(tagInput.trim())) {
-        setTags([...tags, tagInput.trim()])
+      const tag = tagInput.trim()
+
+      // Validation rules: must start with #, no spaces, max 5 tags
+      if (!tag.startsWith('#')) {
+        setError('Tags must start with #')
+        return
       }
+
+      if (tag.includes(' ')) {
+        setError('Tags cannot contain spaces')
+        return
+      }
+
+      if (tag.length < 2) { // # character alone is not valid
+        setError('Tag must have at least one character after #')
+        return
+      }
+
+      if (tags.includes(tag)) {
+        setError('This tag already exists')
+        return
+      }
+
+      setTags([...tags, tag])
       setTagInput('')
+      setError('')
     }
   }
 
@@ -112,9 +138,26 @@ export default function WritePage() {
   }
 
   const handleCoverImageChange = () => {
-    const url = window.prompt('Enter image URL for cover image')
-    if (url) {
-      setCoverImage(url)
+    fileInputRef.current?.click()
+  }
+
+  const handleCoverFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploadingCover(true)
+    setError('')
+
+    try {
+      const uploadedUrl = await uploadImage(file)
+      setCoverImage(uploadedUrl)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload cover image')
+    } finally {
+      setIsUploadingCover(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -134,6 +177,15 @@ export default function WritePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleCoverFileSelect}
+        className="hidden"
+      />
+
       {/* Custom Header for Write Page */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
@@ -155,8 +207,16 @@ export default function WritePage() {
             <Button
               onClick={handlePublish}
               disabled={isPublishing || !title.trim()}
+              className={isPublishing ? 'gap-2' : ''}
             >
-              {isPublishing ? 'Publishing...' : 'Publish'}
+              {isPublishing ? (
+                <>
+                  <InlineLoader size="sm" text="" />
+                  Publishing...
+                </>
+              ) : (
+                'Publish'
+              )}
             </Button>
           </div>
         </div>
@@ -197,10 +257,11 @@ export default function WritePage() {
               ) : (
                 <button
                   onClick={handleCoverImageChange}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed py-12 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                  disabled={isUploadingCover}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed py-12 text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
                 >
-                  <ImagePlus className="size-5" />
-                  <span>Add a cover image</span>
+                  <Upload className="size-5" />
+                  <span>{isUploadingCover ? 'Uploading...' : 'Upload cover image'}</span>
                 </button>
               )}
             </motion.div>
@@ -224,31 +285,34 @@ export default function WritePage() {
             />
 
             {/* Tags */}
-            <div className="flex flex-wrap items-center gap-2">
-              {tags.map(tag => (
-                <span
-                  key={tag}
-                  className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
-                >
-                  {tag}
-                  <button
-                    onClick={() => handleRemoveTag(tag)}
-                    className="ml-1 text-muted-foreground hover:text-foreground"
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {tags.map(tag => (
+                  <span
+                    key={tag}
+                    className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
                   >
-                    <X className="size-3" />
-                  </button>
-                </span>
-              ))}
-              {tags.length < 5 && (
-                <input
-                  type="text"
-                  value={tagInput}
-                  onChange={e => setTagInput(e.target.value)}
-                  onKeyDown={handleAddTag}
-                  placeholder="Add a tag..."
-                  className="w-24 bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none"
-                />
-              )}
+                    {tag}
+                    <button
+                      onClick={() => handleRemoveTag(tag)}
+                      className="ml-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                ))}
+                {tags.length < 5 && (
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={e => setTagInput(e.target.value)}
+                    onKeyDown={handleAddTag}
+                    placeholder="Add a tag (starts with #, no spaces)..."
+                    className="w-32 bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none"
+                  />
+                )}
+              </div>
+              {error && <p className="text-xs text-red-500">{error}</p>}
             </div>
 
             {/* Editor */}

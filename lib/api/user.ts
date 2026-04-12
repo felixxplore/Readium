@@ -1,5 +1,4 @@
-'use client'
-
+ 
 import { getStoredTokens, isTokenExpired, updateStoredAccessToken } from '@/lib/auth/session'
 import { refreshAccessToken } from '@/lib/api/auth'
 import type { UserProfileResponse } from '@/lib/api/auth'
@@ -30,9 +29,9 @@ async function getAccessToken() {
 
   if (refreshToken) {
     try {
-      const refreshed = await refreshAccessToken(refreshToken)
-      updateStoredAccessToken(refreshed.accessToken)
-      return refreshed.accessToken
+      const refreshedTokens = await refreshAccessToken(refreshToken)
+      updateStoredAccessToken(refreshedTokens.accessToken)
+      return refreshedTokens.accessToken
     } catch {
       return null
     }

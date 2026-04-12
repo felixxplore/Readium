@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import type { Editor } from '@tiptap/react'
 import { motion } from 'framer-motion'
 import {
@@ -20,12 +20,17 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { uploadImage } from '@/lib/api/upload'
+import { useToast } from '@/hooks/use-toast'
 
 interface EditorToolbarProps {
   editor: Editor | null
 }
 
 export function EditorToolbar({ editor }: EditorToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast()
+
   const setLink = useCallback(() => {
     if (!editor) return
 
@@ -42,13 +47,35 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   }, [editor])
 
   const addImage = useCallback(() => {
-    if (!editor) return
+    fileInputRef.current?.click()
+  }, [])
 
-    const url = window.prompt('Image URL')
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run()
+  const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !editor) return
+
+    try {
+      toast({
+        title: 'Uploading image...',
+        description: `Uploading ${file.name}`,
+      })
+      const imageUrl = await uploadImage(file)
+      editor.chain().focus().setImage({ src: imageUrl }).run()
+      toast({
+        title: 'Success',
+        description: 'Image uploaded successfully',
+      })
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to upload image',
+        variant: 'destructive',
+      })
+    } finally {
+      // Reset the input so the same file can be selected again
+      event.target.value = ''
     }
-  }, [editor])
+  }, [editor, toast])
 
   if (!editor) return null
 
@@ -87,6 +114,14 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       animate={{ opacity: 1, y: 0 }}
       className="sticky top-14 z-40 -mx-4 flex flex-wrap items-center gap-1 border-b bg-background/95 px-4 py-2 backdrop-blur sm:mx-0 sm:rounded-lg sm:border"
     >
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
       {/* Undo/Redo */}
       <ToolbarButton
         onClick={() => editor.chain().focus().undo().run()}
