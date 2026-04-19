@@ -1,13 +1,22 @@
 package com.felix.bms.dto.user;
 
-public record UserProfileResponse(
-        Long id,
-        String name,
-        String username,
-        String email,
-        String avatar,
-        String bio,
-        long followerCount,
-        long followingCount
-) {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.io.Serializable;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserProfileResponse implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private Long id;
+    private String name;
+    private String username;
+    private String email;
+    private String avatar;
+    private String bio;
+    private long followerCount;
+    private long followingCount;
 }

@@ -30,7 +30,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 @Configuration
-@EnableWebSecurity
+@EnableWebSecurity 
 public class SecurityConfig {
 
     private final JwtService jwtService;

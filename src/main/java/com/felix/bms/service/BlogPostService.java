@@ -30,6 +30,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
+import org.hibernate.Hibernate;
+
 import java.util.List;
 
 @Service
@@ -53,6 +55,10 @@ public class BlogPostService {
     }
 
     public BlogPostResponse toResponse(BlogPost blogPost){
+        // Detach lazy collections from Hibernate session so Jackson doesn't trigger LazyInitializationException
+        // when serializing the response (e.g., @ElementCollection tags are LAZY by default).
+        List<String> tags = (blogPost.getTags() == null) ? List.of() : List.copyOf(blogPost.getTags());
+
         List<CommentResponse> comments = blogPost.getComments().stream()
                 .filter(comment -> comment.getParentComment() == null)
                 .map(commentMapper::toResponse)
@@ -67,7 +73,7 @@ public class BlogPostService {
                 blogPost.getContent(),
                 blogPost.getExcerpt(),
                 blogPost.getCoverImage(),
-                blogPost.getTags(),
+                tags,
                 toAuthorSummary(blogPost.getAuthor()),
                 blogPost.getCreatedAt(),
                 blogPost.getUpdatedAt(),
@@ -78,10 +84,37 @@ public class BlogPostService {
 
 
     @Cacheable(value = "blogPost", key = "#id")
+    @Transactional(readOnly = true)
     public BlogPostResponse getPostById(Long id) {
         BlogPost blog = blogPostRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("blog not found"));
 
+        // Initialize lazy collections before caching
+        Hibernate.initialize(blog.getComments());
+        Hibernate.initialize(blog.getLikes());
+        Hibernate.initialize(blog.getAuthor());
+
+        // Recursively initialize all nested comment replies
+        initializeCommentReplies(blog.getComments());
+
         return toResponse(blog);
+    }
+
+    /**
+     * Recursively initializes all comment replies to prevent lazy loading issues
+     */
+    private void initializeCommentReplies(List<Comment> comments) {
+        if (comments != null) {
+            for (Comment comment : comments) {
+                Hibernate.initialize(comment.getReplies());
+                Hibernate.initialize(comment.getLikes());
+                Hibernate.initialize(comment.getAuthor());
+
+                // Recursively initialize replies of replies
+                if (comment.getReplies() != null && !comment.getReplies().isEmpty()) {
+                    initializeCommentReplies(comment.getReplies());
+                }
+            }
+        }
     }
 
     public Page<BlogPostResponse> getAllPostsByUserEmail(String email, int page, int size){
