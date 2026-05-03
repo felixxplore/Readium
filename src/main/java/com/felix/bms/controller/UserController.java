@@ -7,12 +7,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/user")
@@ -39,4 +37,27 @@ public class UserController {
             @RequestBody UpdateUserProfileRequest request) {
         return ResponseEntity.ok(userService.updateUserProfile(authentication.getName(), request));
     }
+
+    @GetMapping("/username-suggestions")
+    public ResponseEntity<List<String>> suggestions(@RequestParam String name) {
+        return ResponseEntity.ok(userService.generateUsernameSuggestions(name));
+    }
+
+    @GetMapping("/check-username")
+    public ResponseEntity<Map<String, Boolean>> check(@RequestParam String username) {
+
+        boolean available = userService.isUsernameAvailable(username);
+
+        return ResponseEntity.ok(Map.of("available", available));
+    }
+
+    @PostMapping("/set-username")
+    public ResponseEntity<?> setUsername(@RequestBody String username, Authentication auth){
+        userService.setUsername(username, auth);
+
+         return ResponseEntity.ok("username set successfully.");
+
+    }
+
+
 }

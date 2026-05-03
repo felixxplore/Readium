@@ -4,6 +4,8 @@ import com.felix.bms.entity.Comment;
 import com.felix.bms.entity.User;
 import com.felix.bms.enums.LikeType;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -11,9 +13,16 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
+
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
+
+    @Value("${spring.mail.username}")
+    private String fromEmail;
 
     public void sendCommentNotification(User author, Comment comment) {
         SimpleMailMessage msg = new SimpleMailMessage();
@@ -114,4 +123,45 @@ public class EmailService {
         mailSender.send(msg);
     }
 
+     public void sendVerificationEmail(String toEmail, String token) {
+
+        String verificationLink = frontendUrl + "/verify?token=" + token+"&email="+toEmail;
+
+        String subject = "Verify your email";
+
+        String body = buildEmailBody(verificationLink);
+
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject(subject);
+            message.setText(body);
+
+            mailSender.send(message);
+
+            log.info("Verification email sent to {}", toEmail);
+
+        } catch (Exception ex) {
+            log.error("Failed to send email to {}", toEmail, ex);
+            throw new RuntimeException("Failed to send verification email : "+ex.getMessage());
+        }
+    }
+
+    private String buildEmailBody(String link) {
+        return """
+                Hello,
+
+                Please verify your email by clicking the link below:
+
+                %s
+
+                This link will expire in 15 minutes.
+
+                If you did not register, please ignore this email.
+
+                Thanks,
+                Your Team
+                """.formatted(link);
+    }
 }

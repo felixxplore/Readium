@@ -9,8 +9,14 @@ import com.felix.bms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @RequiredArgsConstructor
@@ -77,4 +83,82 @@ public class UserService {
         return toPrivateProfile(user);
     }
 
+    public List<String> generateUsernameSuggestions(String name) {
+
+        String base = normalizeUsername(name);
+
+        if (base.isBlank()) {
+            base = "user";
+        }
+
+        List<String> suggestions = new ArrayList<>();
+
+        // Basic variations
+        suggestions.add(base);
+        suggestions.add(base + "_");
+        suggestions.add(base + "123");
+
+        // Random suffixes
+        for (int i = 0; i < 5; i++) {
+            suggestions.add(base + randomNumber());
+        }
+
+        // 🔥 Filter only available usernames
+        return suggestions.stream()
+                .map(this::normalizeUsername)
+                .filter(u -> !userRepository.existsByUsername(u))
+                .distinct()
+                .limit(5)
+                .toList();
+    }
+
+    private String randomNumber() {
+        return String.valueOf(ThreadLocalRandom.current().nextInt(100, 999));
+    }
+
+    public boolean isUsernameAvailable(String username) {
+
+        String normalized = normalizeUsername(username);
+
+        if (normalized.length() < 3) {
+            return false;
+        }
+
+        return !userRepository.existsByUsernameIgnoreCase(normalized);
+    }
+
+    private String normalizeUsername(String value) {
+        return value == null ? "" :
+                value.trim()
+                        .toLowerCase()
+                        .replaceAll("[^a-z0-9_]", "_")   // replace, don’t remove
+                        .replaceAll("_+", "_")           // collapse multiple _
+                        .replaceAll("^_|_$", "");        // trim edges
+    }
+
+    public void setUsername(String username, Authentication auth) {
+
+        String normalized = normalizeUsername(username);
+
+        if (!isUsernameAvailable(normalized)) {
+            throw new RuntimeException("Username not available");
+        }
+
+        String email = auth.getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow();
+
+        if (user.getUsername() != null) {
+            throw new RuntimeException("Username already set");
+        }
+
+        user.setUsername(normalized);
+
+        try {
+            userRepository.save(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new RuntimeException("Username already taken");
+        }
+    }
 }

@@ -4,6 +4,7 @@ import com.felix.bms.exception.TokenMissingException;
 import com.felix.bms.service.UserDetailsServiceImpl;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -41,51 +43,71 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String userEmail;
+//        final String authHeader = request.getHeader("Authorization");
+//        final String userEmail;
+//        String path = request.getRequestURI();
+//        final String jwt;
 
         if (permitAllMatcher.matches(request) && !requiresAuthentication(request)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-         if(authHeader == null || !authHeader.startsWith("Bearer ")){
-             filterChain.doFilter(request, response);
-             return;
-         }
+//         if(authHeader == null || !authHeader.startsWith("Bearer ")){
+//             filterChain.doFilter(request, response);
+//             return;
+//         }
+        String token = extractCookie(request, "accessToken");
 
 
-        jwt=authHeader.substring(7); // remove "Bearer "
-        log.debug(jwt + " token catch");
+//        jwt=authHeader.substring(7); // remove "Bearer "
+        log.debug(token + " token catch");
 
-        try{
-
-            userEmail=jwtService.extractUsername(jwt);
-            if(userEmail !=null && SecurityContextHolder.getContext().getAuthentication()==null){
-                UserDetails userDetails=userDetailsService.loadUserByUsername(userEmail);
-
-                if(jwtService.isTokenValid(jwt,userDetails)){
-                    log.info("token is valid");
-                    UsernamePasswordAuthenticationToken authToken=new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                    log.debug("Authenticated User : {}", userEmail);
-                }
-            }
-        }catch (Exception e){
-            log.error("JWT processing failed : {}", e.getMessage());
-            resolver.resolveException(request, response, null, e);
+        if(token==null){
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
+            try{
 
+                String userEmail=jwtService.extractUsername(token);
+                if(userEmail !=null && SecurityContextHolder.getContext().getAuthentication()==null){
+                    UserDetails userDetails=userDetailsService.loadUserByUsername(userEmail);
 
-            filterChain.doFilter(request, response); // only if authenticated or public
+                    if(jwtService.isTokenValid(token,userDetails)){
+                        log.info("token is valid");
+                        UsernamePasswordAuthenticationToken authToken=new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
+                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                        log.debug("Authenticated User : {}", userEmail);
+                    }
+                    else{
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        return;
+                    }
+                }
+            }catch (Exception e){
+                log.error("JWT processing failed : {}", e.getMessage());
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                resolver.resolveException(request, response, null, e);
+                return;
+            }
 
+        filterChain.doFilter(request, response); // only if authenticated or public
+
+    }
+
+    private String extractCookie(HttpServletRequest request, String name)  {
+        if (request.getCookies() == null) return null;
+
+        return Arrays.stream(request.getCookies())
+                .filter(c -> c.getName().equals(name))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElse(null);
     }
 
     private boolean requiresAuthentication(HttpServletRequest request) {

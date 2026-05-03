@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,10 +36,10 @@ public class JwtService {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(UserDetails userDetails){
+    public String generateToken(String email,String role){
         return Jwts.builder()
-                .subject(userDetails.getUsername())
-                .claim("roles", userDetails.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList()))
+                .subject(email)
+                .claim("role", role)
                 .issuedAt(new Date())
                 .expiration( new Date(System.currentTimeMillis()+ jwtExpiration))
                 .signWith(key,Jwts.SIG.HS256)
@@ -66,7 +67,7 @@ public class JwtService {
 
     public boolean isTokenValid(String token, UserDetails userDetails){
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
 
     public boolean isTokenExpired(String token){
@@ -77,5 +78,15 @@ public class JwtService {
                 .getPayload()
                 .getExpiration()
                 .before(new Date());
+    }
+
+
+    public String extractRole(String token){
+        return Jwts.parser()
+                .verifyWith(KeyGenerator.getKey(secret))
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("role", String.class);
     }
 }

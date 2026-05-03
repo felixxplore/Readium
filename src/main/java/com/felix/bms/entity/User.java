@@ -24,7 +24,7 @@ public class User {
         @Column(nullable = false)
         private String name;
 
-        @Column(nullable = false, unique = true)
+        @Column(  unique = true)
         private String username;
 
         @Column(nullable = false, unique = true)
@@ -43,8 +43,10 @@ public class User {
 
         @Enumerated(EnumType.STRING)
         @Column(nullable = false)
-        private AuthProvider provider;
+        private AuthProvider provider=AuthProvider.LOCAL;
 
         private String providerId;
+
+    private boolean emailVerified = false;
 
 }

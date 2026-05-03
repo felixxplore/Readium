@@ -6,14 +6,15 @@ import com.felix.bms.dto.auth.GoogleOAuthRequest;
 import com.felix.bms.dto.auth.RegisterRequest;
 import com.felix.bms.dto.token.TokenRefreshRequest;
 import com.felix.bms.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -27,23 +28,40 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest registerRequest) throws BadRequestException {
-         return ResponseEntity.ok(authService.register(registerRequest));
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest registerRequest)   {
+        authService.register(registerRequest);
+        return ResponseEntity.ok("Verification email sent");
+    }
+
+
+    @PostMapping("/verify")
+    public ResponseEntity<?> verify(@RequestParam String token, HttpServletResponse response) {
+        authService.verifyEmail(token,response);
+        return ResponseEntity.ok("Email verified");
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest authRequest){
-        return ResponseEntity.ok(authService.login(authRequest));
+    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest authRequest, HttpServletResponse response){
+        return ResponseEntity.ok(authService.login(authRequest,response));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody TokenRefreshRequest tokenRefreshRequest){
-        return ResponseEntity.ok(authService.refreshToken(tokenRefreshRequest));
+    public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
+        authService.refreshToken(request, response);
+        return ResponseEntity.ok("Token refreshed");
     }
 
-    @PostMapping("/google")
-    public ResponseEntity<AuthResponse> authenticateWithGoogle(@Valid @RequestBody GoogleOAuthRequest request) throws BadRequestException {
-        return ResponseEntity.ok(authService.authenticateWithGoogle(request));
+    @PostMapping("/resend-verification")
+    public ResponseEntity<?> resend(@RequestBody String email) {
+
+        authService.resendVerification(email);
+
+        return ResponseEntity.ok("If account exists, verification email sent");
     }
+
+//    @PostMapping("/google")
+//    public ResponseEntity<AuthResponse> authenticateWithGoogle(@Valid @RequestBody GoogleOAuthRequest request) throws BadRequestException {
+//        return ResponseEntity.ok(authService.authenticateWithGoogle(request));
+//    }
 
 }
