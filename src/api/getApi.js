@@ -13,3 +13,13 @@ export const getAllPosts = (page = 0, size = 10) => {
   });
 };
 
+/**
+ * Search posts by query string, paginated.
+ * Backend: GET /api/post/search?q=...&page=0&size=10
+ * Returns Spring Data Page<BlogPostResponse> shape (same as getAllPosts).
+ */
+export const searchPosts = (query, page = 0, size = 10) => {
+  return axiosInstance.get("/post/search", {
+    params: { q: query, page, size },
+  });
+};

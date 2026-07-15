@@ -1,26 +1,29 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import BlogFeedPage from "../pages/BlogFeedPage";
-import { getAllPosts } from "../api/getApi";
+import { getAllPosts, searchPosts } from "../api/getApi";
 
 const PAGE_SIZE = 10;
 
 /**
  * BlogFeedContainer
  *
- * Handles data fetching for the public blog feed using "Load More" pagination:
- * - Fetches page 0 on mount
- * - "Load More" click fetches the next page and appends results
- * - Search resets the list and starts from page 0 again
+ * Handles data fetching for the public blog feed using "Load More" pagination.
+ * Supports both the default feed and search (same pagination pattern for both).
+ *
+ * featuredPost is stored in its own state, set ONCE from the very first feed
+ * fetch (page 0, no search query) and never overwritten afterwards - this is
+ * what keeps it visible even after "Load More" bumps the page forward.
  */
 export default function BlogFeedContainer() {
   const navigate = useNavigate();
 
   const [posts, setPosts] = useState([]);
+  const [featuredPost, setFeaturedPost] = useState(null);
   const [page, setPage] = useState(0); // backend is 0-indexed
   const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(true); // initial full-page load
-  const [isLoadingMore, setIsLoadingMore] = useState(false); // load-more button load
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -29,7 +32,7 @@ export default function BlogFeedContainer() {
 
   const hasMore = page < totalPages - 1;
 
-  const fetchPosts = useCallback(async (pageNumber, { append }) => {
+  const fetchPosts = useCallback(async (pageNumber, { append, query }) => {
     if (append) {
       setIsLoadingMore(true);
     } else {
@@ -38,7 +41,10 @@ export default function BlogFeedContainer() {
     setError(null);
 
     try {
-      const response = await getAllPosts(pageNumber, PAGE_SIZE);
+      const response = query
+        ? await searchPosts(query, pageNumber, PAGE_SIZE)
+        : await getAllPosts(pageNumber, PAGE_SIZE);
+
       const data = response.data; // Page<BlogPostResponse>
 
       setPosts((prev) =>
@@ -46,6 +52,11 @@ export default function BlogFeedContainer() {
       );
       setTotalPages(data.totalPages || 1);
       setPage(data.number ?? 0);
+
+      // Set featured post only once: first-ever feed load (no query, no append)
+      if (!query && !append && pageNumber === 0) {
+        setFeaturedPost(data.content?.[0] ?? null);
+      }
     } catch (err) {
       console.error("Error fetching posts:", err);
       setError("Something went wrong while loading posts. Please try again.");
@@ -56,26 +67,20 @@ export default function BlogFeedContainer() {
     }
   }, []);
 
+  // Initial load
   useEffect(() => {
-    fetchPosts(0, { append: false });
+    fetchPosts(0, { append: false, query: "" });
   }, [fetchPosts]);
 
   const handleLoadMore = () => {
     if (isLoadingMore || !hasMore) return;
-    fetchPosts(page + 1, { append: true });
+    fetchPosts(page + 1, { append: true, query: searchQuery });
   };
 
   const handleSearch = (query) => {
     setSearchQuery(query);
-    // TODO: wire up real search endpoint once backend is ready
-    if (!query) {
-      fetchPosts(0, { append: false });
-    }
+    fetchPosts(0, { append: false, query });
   };
-
-  // Only show the featured hero on the very first load (page 0) while not searching
-  const featuredPost =
-    !searchQuery && page === 0 && posts.length > 0 ? posts[0] : null;
 
   const handlePostClick = (postId) => navigate(`/post/${postId}`);
   const handleFeaturedPostClick = (postId) => navigate(`/post/${postId}`);
@@ -97,7 +102,7 @@ export default function BlogFeedContainer() {
           </p>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
-            onClick={() => fetchPosts(0, { append: false })}
+            onClick={() => fetchPosts(0, { append: false, query: searchQuery })}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
           >
             Try again
