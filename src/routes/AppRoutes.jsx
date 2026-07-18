@@ -1,5 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import BlogFeedContainer from "../containers/BlogFeedContainer";
+import AuthorsContainer from "../containers/AuthorsContainer";
+import AboutContainer from "../containers/AboutContainer";
 
 // TODO: uncomment and wire up as each container is built
 // import LoginContainer from "../containers/LoginContainer";
@@ -13,6 +15,8 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<BlogFeedContainer />} />
+      <Route path="/authors" element={<AuthorsContainer />} />
+      <Route path="/about" element={<AboutContainer />} />
 
       {/* TODO: add these as pages get built */}
       {/* <Route path="/login" element={<LoginContainer />} /> */}
