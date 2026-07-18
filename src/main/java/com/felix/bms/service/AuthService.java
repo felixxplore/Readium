@@ -9,17 +9,24 @@ import com.felix.bms.dto.user.UserProfileResponse;
 import com.felix.bms.entity.EmailVerificationToken;
 import com.felix.bms.entity.RefreshToken;
 import com.felix.bms.entity.User;
+import com.felix.bms.enums.AuthProvider;
 import com.felix.bms.enums.Role;
 import com.felix.bms.exception.InvalidRefreshTokenException;
 import com.felix.bms.exception.UserAlreadyExistsException;
 import com.felix.bms.repository.EmailVerificationTokenRepository;
+import com.felix.bms.repository.FollowRelationshipRepository;
 import com.felix.bms.repository.RefreshTokenRepository;
 import com.felix.bms.repository.UserRepository;
 import com.felix.bms.security.JwtService;
 import com.felix.bms.util.CookieUtil;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
@@ -60,6 +67,12 @@ public class AuthService {
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final EmailService emailService;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final FollowRelationshipRepository followRelationshipRepository;
+
+    @Value("${google.client-id}")
+    private String googleClientId;
+
+
 
 
     @Transactional
@@ -379,5 +392,60 @@ public class AuthService {
         emailVerificationTokenRepository.save(token);
 
         emailService.sendVerificationEmail(user.getEmail(), token.getToken());
+    }
+
+    public AuthResponse authenticateWithGoogle(GoogleOAuthRequest request) throws BadRequestException {
+
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                new NetHttpTransport(), new GsonFactory())
+                .setAudience(Collections.singletonList(googleClientId)) // apne Client ID se match
+                .build();
+
+        GoogleIdToken idToken;
+        try {
+            idToken = verifier.verify(request.idToken());
+        } catch (Exception e) {
+            throw new BadRequestException("Invalid Google token");
+        }
+
+        if (idToken == null) {
+            throw new BadRequestException("Invalid or expired Google token");
+        }
+
+        GoogleIdToken.Payload payload = idToken.getPayload();
+        String email = payload.getEmail();
+        String name = (String) payload.get("name");
+        String pictureUrl = (String) payload.get("picture");
+        boolean emailVerified = payload.getEmailVerified();
+
+        // DB check - user exist karta hai kya
+        User user = userRepository.findByEmail(email)
+                .orElseGet(() -> {
+                    User newUser = new User();
+                    newUser.setEmail(email);
+                    newUser.setName(name);
+                    newUser.setPicture(pictureUrl);
+                    newUser.setProvider(AuthProvider.GOOGLE);
+                    newUser.setPassword(null); // password ki zarurat nahi
+                    return userRepository.save(newUser);
+                });
+
+        // apna JWT generate karo (jo aap normal login me bhi use karte ho)
+        String accessToken = jwtService.generateToken(user.getEmail(),user.getRole().toString());
+        String refreshToke=jwtService.generateRefreshToken(user.getEmail());
+
+        long followerCount = followRelationshipRepository.countByFollowerId(user.getId());
+        long followingCount = followRelationshipRepository.countByFollowingId(user.getId());
+
+        return new AuthResponse(accessToken, refreshToke,  UserProfileResponse.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .avatar(user.getPicture())
+                .bio(user.getBio())
+                .followerCount(followerCount)
+                .followingCount(followingCount)
+                .build() );
     }
 }

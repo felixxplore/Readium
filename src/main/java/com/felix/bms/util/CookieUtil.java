@@ -12,7 +12,7 @@ public class CookieUtil {
         return ResponseCookie.from("accessToken", token)
                 .httpOnly(true)
                 .path("/")
-                .maxAge(Duration.ofMinutes(15))
+                .maxAge(Duration.ofDays(7))
                 .build();
     }
 

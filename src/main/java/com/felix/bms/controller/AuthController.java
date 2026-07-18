@@ -59,9 +59,9 @@ public class AuthController {
         return ResponseEntity.ok("If account exists, verification email sent");
     }
 
-//    @PostMapping("/google")
-//    public ResponseEntity<AuthResponse> authenticateWithGoogle(@Valid @RequestBody GoogleOAuthRequest request) throws BadRequestException {
-//        return ResponseEntity.ok(authService.authenticateWithGoogle(request));
-//    }
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> authenticateWithGoogle(@Valid @RequestBody GoogleOAuthRequest request) throws BadRequestException {
+        return ResponseEntity.ok(authService.authenticateWithGoogle(request));
+    }
 
 }
