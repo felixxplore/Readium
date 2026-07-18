@@ -5,8 +5,8 @@ const AuthContext = createContext(null);
 
 // TODO: move this to an environment variable (VITE_GOOGLE_CLIENT_ID) instead
 // of hardcoding it, especially before deploying anywhere public.
-const GOOGLE_CLIENT_ID =
-  "861711050429-2nrnpl6i3ilkdpe7m2hmvrivkecebkjg.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
   
 
 export function AuthProvider({ children }) {
