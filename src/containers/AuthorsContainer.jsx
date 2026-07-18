@@ -1,8 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import AuthorsPage from "../pages/AuthorsPage";
+import { useAuth } from "../context/AuthContext";
 
 export default function AuthorsContainer() {
   const navigate = useNavigate();
+  const { isAuthenticated, triggerGoogleSignIn } = useAuth();
 
   const handleNavigate = (destination) => {
     switch (destination) {
@@ -20,5 +22,11 @@ export default function AuthorsContainer() {
     }
   };
 
-  return <AuthorsPage onNavigate={handleNavigate} />;
+  return (
+    <AuthorsPage
+      onNavigate={handleNavigate}
+      onSignInClick={triggerGoogleSignIn}
+      isAuthenticated={isAuthenticated}
+    />
+  );
 }
