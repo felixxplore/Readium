@@ -140,8 +140,10 @@ public class AuthService {
                 .build();
     }
 
-    public void refreshToken(HttpServletRequest request, HttpServletResponse response){
-        String refreshTokenValue = extractCookie(request, "refreshToken");
+    public AuthResponse refreshToken(HttpServletRequest request, HttpServletResponse response){
+//        String refreshTokenValue = extractCookie(request, "refreshToken");
+
+        String refreshTokenValue=extractBearerToken(request);
 
         if (refreshTokenValue == null) {
             throw new RuntimeException("Refresh token missing");
@@ -168,12 +170,7 @@ public class AuthService {
 
         String newAccessToken = jwtService.generateToken(user.getEmail(),user.getRole().toString());
 
-        response.addHeader(HttpHeaders.SET_COOKIE,
-                new CookieUtil().createAccessTokenCookie(newAccessToken).toString());
-
-        response.addHeader(HttpHeaders.SET_COOKIE,
-                new CookieUtil().createRefreshTokenCookie(newRefreshToken.getToken()).toString());
-
+        return new AuthResponse(newAccessToken, newRefreshToken.getToken());
     }
 
     public Long getCurrentUserId(String email){
@@ -426,18 +423,26 @@ public class AuthService {
                     newUser.setName(name);
                     newUser.setPicture(pictureUrl);
                     newUser.setProvider(AuthProvider.GOOGLE);
-                    newUser.setPassword(null); // password ki zarurat nahi
+                    newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString())); // password ki zarurat nahi
                     return userRepository.save(newUser);
                 });
 
         // apna JWT generate karo (jo aap normal login me bhi use karte ho)
         String accessToken = jwtService.generateToken(user.getEmail(),user.getRole().toString());
-        String refreshToke=jwtService.generateRefreshToken(user.getEmail());
+        String newRefreshToken=jwtService.generateRefreshToken(user.getEmail());
+
+        RefreshToken refreshToken=new RefreshToken();
+        refreshToken.setUser(user);
+        refreshToken.setExpiredDate(Instant.now().plus(7, ChronoUnit.DAYS));
+        refreshToken.setRevoked(false);
+        refreshToken.setToken(newRefreshToken);
+
+        RefreshToken refreshToken1=refreshTokenRepository.save(refreshToken);
 
         long followerCount = followRelationshipRepository.countByFollowerId(user.getId());
         long followingCount = followRelationshipRepository.countByFollowingId(user.getId());
 
-        return new AuthResponse(accessToken, refreshToke,  UserProfileResponse.builder()
+        return new AuthResponse(accessToken, refreshToken1.getToken(),  UserProfileResponse.builder()
                 .id(user.getId())
                 .name(user.getName())
                 .username(user.getUsername())
@@ -447,5 +452,13 @@ public class AuthService {
                 .followerCount(followerCount)
                 .followingCount(followingCount)
                 .build() );
+    }
+
+    private String extractBearerToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return null;
     }
 }

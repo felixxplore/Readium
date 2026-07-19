@@ -83,7 +83,6 @@ public class BlogPostService {
     }
 
 
-    @Cacheable(value = "blogPost", key = "#id")
     @Transactional(readOnly = true)
     public BlogPostResponse getPostById(Long id) {
         BlogPost blog = blogPostRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("blog not found"));
@@ -124,7 +123,7 @@ public class BlogPostService {
 
     public Page<BlogPostResponse> getPostsByAuthorUsername(String username, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return blogPostRepository.findByAuthor_UsernameOrderByCreatedAtDesc(username, pageable)
+        return blogPostRepository.findByAuthor_NameOrderByCreatedAtDesc(username, pageable)
                 .map(this::toResponse);
     }
 
@@ -161,8 +160,7 @@ public class BlogPostService {
     }
 
     @Transactional
-    @CacheEvict(value = "blogPost", key = "#id")
-    public BlogPostResponse updatePost(Long id, @Valid UpdatePostRequest request, String email) throws AccessDeniedException {
+     public BlogPostResponse updatePost(Long id, @Valid UpdatePostRequest request, String email) throws AccessDeniedException {
         BlogPost post = blogPostRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Post not found with this id : " + id));
 
         if(!post.getAuthor().getEmail().equals(email)){
@@ -181,8 +179,7 @@ public class BlogPostService {
 
 
     @Transactional
-    @CacheEvict(value = "blogPost", key = "#id")
-    public void deletePost(Long id, String email) throws AccessDeniedException {
+     public void deletePost(Long id, String email) throws AccessDeniedException {
         BlogPost post = blogPostRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Post not found with this id : " + id));
 
         User user = getUserByEmail(email);

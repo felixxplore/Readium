@@ -46,9 +46,9 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
-        authService.refreshToken(request, response);
-        return ResponseEntity.ok("Token refreshed");
+    public ResponseEntity<AuthResponse> refresh(HttpServletRequest request, HttpServletResponse response) {
+        AuthResponse authResponse = authService.refreshToken(request, response);
+        return ResponseEntity.ok(authResponse);
     }
 
     @PostMapping("/resend-verification")

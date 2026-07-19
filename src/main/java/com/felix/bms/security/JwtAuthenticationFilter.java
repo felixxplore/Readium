@@ -43,24 +43,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-//        final String authHeader = request.getHeader("Authorization");
+        final String authHeader = request.getHeader("Authorization");
 //        final String userEmail;
 //        String path = request.getRequestURI();
-//        final String jwt;
+        final String token;
 
         if (permitAllMatcher.matches(request) && !requiresAuthentication(request)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-//         if(authHeader == null || !authHeader.startsWith("Bearer ")){
-//             filterChain.doFilter(request, response);
-//             return;
-//         }
-        String token = extractCookie(request, "accessToken");
+         if(authHeader == null || !authHeader.startsWith("Bearer ")){
+             filterChain.doFilter(request, response);
+             return;
+         }
+//        String token = extractCookie(request, "accessToken");
 
 
-//        jwt=authHeader.substring(7); // remove "Bearer "
+        token=authHeader.substring(7); // remove "Bearer "
         log.debug(token + " token catch");
 
         if(token==null){

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface BlogPostRepository extends JpaRepository<BlogPost, Long> {
@@ -23,4 +24,6 @@ public interface BlogPostRepository extends JpaRepository<BlogPost, Long> {
             String contentQuery,
             Pageable pageable
     );
+
+    Page<BlogPost>  findByAuthor_NameOrderByCreatedAtDesc(String username, Pageable pageable);
 }
