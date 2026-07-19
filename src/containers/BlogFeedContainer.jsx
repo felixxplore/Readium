@@ -75,6 +75,7 @@ export default function BlogFeedContainer() {
   const handlePostClick = (postId) => navigate(`/post/${postId}`);
   const handleFeaturedPostClick = (postId) => navigate(`/post/${postId}`);
   const handleWriteClick = () => navigate("/create-post");
+  const handleProfileClick = () => navigate("/dashboard");
 
   const handleNavigate = (destination) => {
     switch (destination) {
@@ -125,6 +126,7 @@ export default function BlogFeedContainer() {
       onPostClick={handlePostClick}
       onFeaturedPostClick={handleFeaturedPostClick}
       onWriteClick={handleWriteClick}
+      onProfileClick={handleProfileClick}
       onLoginClick={triggerGoogleSignIn}
       onSignupClick={triggerGoogleSignIn}
       onNavigate={handleNavigate}

@@ -73,7 +73,12 @@ export function AuthProvider({ children }) {
 
     try {
       const res = await googleLogin(idToken);
-      const { accessToken, refreshToken, user: userProfile } = res.data;
+      const authData = res.data?.data || res.data;
+      const { accessToken, refreshToken, user: userProfile } = authData;
+
+      if (!accessToken || !refreshToken || !userProfile) {
+        throw new Error("Invalid authentication response");
+      }
 
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("refreshToken", refreshToken);

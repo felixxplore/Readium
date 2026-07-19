@@ -15,6 +15,7 @@ export default function ModernEditorialFeed({
   onPostClick,
   onFeaturedPostClick,
   onWriteClick,
+  onProfileClick,
   onLoginClick,
   onSignupClick,
   onNavigate,
@@ -156,7 +157,12 @@ export default function ModernEditorialFeed({
                   >
                     WRITE
                   </button>
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C5A059] to-[#8B7043]"></div>
+                  <button
+                    onClick={onProfileClick}
+                    className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C5A059] to-[#8B7043] hover:ring-2 hover:ring-black/20 transition-all"
+                    title="My Stories"
+                    aria-label="Open my stories"
+                  ></button>
                 </>
               ) : (
                 <>
